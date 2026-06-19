@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-std=c17
-OBJ=main.o cpu.o memory.o
+OBJ=main.o cpu.o memory.o tasks.o uptime.o
 
 kmonitor.out: $(OBJ)
 	$(CC) $(OBJ) -o kmonitor.out
@@ -13,6 +13,12 @@ cpu.o: cpu.c cpu.h
 
 memory.o: memory.c memory.h
 	$(CC) $(CFLAGS) -c memory.c
+
+tasks.o: tasks.c tasks.h
+	$(CC) $(CFLAGS) -c tasks.c
+
+uptime.o: tasks.c uptime.h
+	$(CC) $(CFLAGS) -c uptime.c
 
 clean:
 	rm -f *.o kmonitor.out

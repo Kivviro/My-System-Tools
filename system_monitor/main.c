@@ -1,21 +1,18 @@
+#include "cpu.h"
+#include "memory.h"
+#include "tasks.h"
+#include "uptime.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "cpu.h"
-#include "memory.h"
-
-/*
-/proc/stat - CPU
-/proc/meminfo - RAM
-/proc/cpuinfo - CPU cores
-*/
-
 /*
 add later:
     - count of tasks
     - uptime
+    - swap memory
     - processes
 */
 
@@ -70,13 +67,15 @@ int main(void)
         read_all_cores(cores_new, cores);
 
         MemoryInfo ram;
-
         read_memory(&ram);
 
+        TaskInfo tasks;
+        read_tasks(&tasks);
+
+        double uptime = get_uptime();
+
         if (read_memory(&ram) != 0)
-        {
             fprintf(stderr, "Cannot read /proc/meminfo\n");
-        }
 
         clear_screen();
 
@@ -103,6 +102,18 @@ int main(void)
 
         printf("\n");
 
+        printf("Tasks : %d\n", tasks.tasks);
+        printf("Threads : %d\n", tasks.threads);
+        printf("Kernel threads : %d\n", tasks.kernel_threads);
+        printf("Running : %d\n", tasks.running);
+
+        printf("\n");
+
+        printf("Uptime : ");
+        print_uptime(uptime);
+
+        printf("\n\n");
+
         unsigned long total_mb = ram.total / 1024;
         unsigned long free_mb = ram.available / 1024;
         unsigned long used_mb = total_mb - free_mb;
@@ -111,6 +122,16 @@ int main(void)
         printf("Total : %lu MB\n", total_mb);
         printf("Used : %lu MB\n", used_mb);
         printf("Free : %lu MB\n", free_mb);
+
+        unsigned long swap_used = ram.swap_total - ram.swap_free;
+
+        printf("\n");
+        printf("SWAP\n\n");
+        printf("Total : %lu MB\n", ram.swap_total / 1024);
+
+        printf("Used  : %lu MB\n", swap_used / 1024);
+
+        printf("Free  : %lu MB\n", ram.swap_free / 1024);
 
         total_old = total_new;
 
