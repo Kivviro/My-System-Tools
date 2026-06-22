@@ -10,9 +10,6 @@
 
 /*
 add later:
-    - count of tasks
-    - uptime
-    - swap memory
     - processes
 */
 
@@ -23,7 +20,7 @@ static void clear_screen(void)
 
 static void draw_bar(double percent)
 {
-    int width = 40;
+    int width = 40; // get terminal window size
 
     int filled = (int)(percent * width / 100.0);
 
@@ -102,9 +99,9 @@ int main(void)
 
         printf("\n");
 
-        printf("Tasks : %d\n", tasks.tasks);
-        printf("Threads : %d\n", tasks.threads);
-        printf("Kernel threads : %d\n", tasks.kernel_threads);
+        printf("Tasks : %d\t", tasks.tasks);
+        printf("Threads : %d\t", tasks.threads);
+        printf("Kernel threads : %d\t", tasks.kernel_threads);
         printf("Running : %d\n", tasks.running);
 
         printf("\n");
@@ -112,24 +109,24 @@ int main(void)
         printf("Uptime : ");
         print_uptime(uptime);
 
-        printf("\n\n");
+        printf("\n\n\n");
 
         unsigned long total_mb = ram.total / 1024;
         unsigned long free_mb = ram.available / 1024;
         unsigned long used_mb = total_mb - free_mb;
 
         printf("RAM\n\n");
-        printf("Total : %lu MB\n", total_mb);
-        printf("Used : %lu MB\n", used_mb);
-        printf("Free : %lu MB\n", free_mb);
+        printf("Total : %lu MB\t", total_mb);
+        printf("Used  : %lu MB\t", used_mb);
+        printf("Free  : %lu MB\n", free_mb);
 
         unsigned long swap_used = ram.swap_total - ram.swap_free;
 
         printf("\n");
         printf("SWAP\n\n");
-        printf("Total : %lu MB\n", ram.swap_total / 1024);
+        printf("Total : %lu MB\t", ram.swap_total / 1024);
 
-        printf("Used  : %lu MB\n", swap_used / 1024);
+        printf("Used  : %lu MB\t", swap_used / 1024);
 
         printf("Free  : %lu MB\n", ram.swap_free / 1024);
 

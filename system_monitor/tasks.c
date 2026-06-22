@@ -9,17 +9,87 @@
 #include <dirent.h>
 #include <ctype.h>
 
-static int is_pid_dir(const char *name)
+static int is_numeric(const char *s)
 {
-    while (*name)
+    if (*s == '\0')
+        return 0;
+
+    while (*s)
     {
-        if (!isdigit((unsigned char)*name))
+        if (!isdigit((unsigned char)*s))
             return 0;
-        
-        name++;
+
+        s++;
     }
 
     return 1;
+}
+
+static int count_threads(const char *pid)
+{
+    char path[256];
+
+    snprintf(path, sizeof(path), "/proc/%s/task", pid);
+
+    DIR *task_dir = opendir(path);
+
+    if (!task_dir)
+        return 0;
+
+    struct dirent *entry;
+
+    int count = 0;
+
+    while ((entry = readdir(task_dir)) != NULL)
+    {
+        if (is_numeric(entry->d_name))
+            count++;
+    }
+
+    closedir(task_dir);
+
+    return count;
+}
+
+static int is_kernel_thread(const char *pid)
+{
+    char path[256];
+
+    snprintf(path, sizeof(path), "/proc/%s/exe", pid);
+
+    char target[512];
+
+    ssize_t len = readlink(path, target, sizeof(target) - 1);
+
+    return (len == -1);
+}
+
+static char get_state(const char *pid)
+{
+    char path[256];
+
+    snprintf(path, sizeof(path), "/proc/%s/status", pid);
+
+    FILE *fp = fopen(path, "r");
+
+    if (!fp)
+        return '?';
+
+    char line[256];
+    char state = '?';
+
+    while (fgets(line, sizeof(line), fp))
+    {
+        if (strncmp(line, "State:", 6) == 0)
+        {
+            sscanf(line, "State:\t%c", &state);
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    return state;
 }
 
 int read_tasks(TaskInfo *info)
@@ -29,61 +99,38 @@ int read_tasks(TaskInfo *info)
     info->kernel_threads = 0;
     info->running = 0;
 
-    DIR *proc;
-    struct dirent *entry;
-
-    proc = opendir("/proc");
+    DIR *proc = opendir("/proc");
 
     if (!proc)
         return -1;
 
+    struct dirent *entry;
+
     while ((entry = readdir(proc)) != NULL)
     {
-        if (!is_pid_dir(entry->d_name))
+        if (!is_numeric(entry->d_name))
             continue;
 
-        info->tasks++;
+        const char *pid = entry->d_name;
 
-        char path[256];
+        int kernel = is_kernel_thread(pid);
 
-        snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
-
-        FILE *fp = fopen(path, "r");
-
-        if (!fp)
-            continue;
-
-        char line[256];
-        int threads = 0;
-        char state = '?';
-
-        while (fgets(line, sizeof(line), fp))
-        {
-            if (sscanf(line, "Threads: %c", &threads) == 1)
-                continue;
-
-            if (sscanf(line, "State: %c", &state) == 1)
-                continue;
-        }
-
-        fclose(fp);
-
-        info->threads += threads;
+        char state = get_state(pid);
 
         if (state == 'R')
             info->running++;
 
-        snprintf(path, sizeof(path), "/proc/%s/exe", entry->d_name);
-
-        if (access(path, F_OK) == 0)
+        if (kernel)
         {
-            char exe[512];
-
-            ssize_t len = readlink(path, exe, sizeof(exe) - 1);
-
-            if (len == -1)
-                info->kernel_threads++;
+            info->kernel_threads++;
+            continue;
         }
+
+        info->tasks++;
+
+        int threads = count_threads(pid);
+
+        info->threads += threads;
     }
 
     closedir(proc);
