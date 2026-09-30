@@ -1,5 +1,5 @@
-#ifndef KIWI_TERMINAL_H
-#define KIWI_TERMINAL_H
+#ifndef KSH_TERMINAL_H
+#define KSH_TERMINAL_H
 
 #include <stdio.h>
 #include <stdlib.h>
