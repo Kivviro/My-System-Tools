@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "../include/history.h"
+#include "history.h"
 
 static char *history[MAX_HISTORY];
 static size_t history_len = 0;
@@ -10,7 +10,7 @@ void history_add(const char *line)
     if (line == NULL || *line == '\0')
         return;
 
-    if (history > 0 && strcmp(history[history_len - 1], line) == 0)
+    if (history_len > 0 && strcmp(history[history_len - 1], line) == 0)
         return;
 
     if (history_len == MAX_HISTORY)

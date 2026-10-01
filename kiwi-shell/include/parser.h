@@ -1,5 +1,5 @@
 #ifndef KSH_PARSER_H
-#define kSH_PARSER_H
+#define KSH_PARSER_H
 
 #include <stddef.h>
 #include <ctype.h>

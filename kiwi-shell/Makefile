@@ -1,16 +1,21 @@
 CC = cc
 CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -O2
 
-TARGET = kiwish
+TARGET = ksh
 
-SRC = src/terminal.c
+SRC = src/main.c src/builtin.c src/completion.c src/executor.c src/history.c src/parser.c src/shell.c src/terminal.c
 
-OBJ = $(SRC:.c=0.)
+OBJ = $(SRC:.c=.o)
+
+CPPFLAGS = -Iinclude
 
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET)
+
+src/%.o: src/%.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJ) $(TARGET)

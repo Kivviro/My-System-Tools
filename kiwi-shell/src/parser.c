@@ -1,4 +1,6 @@
-#include "../include/parser.h"
+#define _POSIX_C_SOURCE 200809L
+
+#include "parser.h"
 
 int parse_line(char *line, char **argv, size_t max_args)
 {

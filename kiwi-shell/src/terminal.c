@@ -1,6 +1,6 @@
-#define _POSIX_C_COURCE 200809L
+#define _POSIX_C_SOURCE 200809L
 
-#include "../include/terminal.h"
+#include "terminal.h"
 
 static struct termios original_termios;
 static int raw_enabled = 0;

@@ -1,5 +1,5 @@
 #ifndef KSH_BUILTIN_H
-#define JS_BUILTIN_H
+#define KSH_BUILTIN_H
 
 #include <limits.h>
 #include <stdio.h>

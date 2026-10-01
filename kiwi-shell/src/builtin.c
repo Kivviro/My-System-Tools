@@ -1,9 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "../include/builtin.h"
+#include "builtin.h"
 
-#include "../include/history.h"
-#include "../include/terminal.h"
+#include "history.h"
+#include "terminal.h"
 
 static int builtin_cd(char **argv)
 {
@@ -21,7 +21,7 @@ static int builtin_cd(char **argv)
 
     if (chdir(dir) == -1)
     {
-        fprintf(stderr, "msh: cd: %s: failed\n", dir);
+        fprintf(stderr, "ksh: cd: %s: failed\n", dir);
 
         return 1;
     }
@@ -39,7 +39,7 @@ static int builtin_pwd(void)
         return 0;
     }
 
-    perror("msh: pwd");
+    perror("ksh: pwd");
 
     return 1;
 }
