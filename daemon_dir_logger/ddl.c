@@ -24,30 +24,63 @@ int main()
     char buf[4096];
     time_t last_mod_time[256] = {0};
 
+    FILE *file = fopen("log.txt", "a");
+    if (file == NULL)
+    {
+        perror("fopen failed");
+        return 1;
+    }
+
     while (1) 
     {
         int len = read(fd, buf, sizeof(buf));
+
+        if (len < 0)
+        {
+            perror("read");
+            break;
+        }
+
         struct inotify_event *event = (struct inotify_event *)buf;
         time_t now = time(NULL);
 
+        char output_buf[1024];
+        int offset = 0;
+
         while ((char *)event < buf + len) 
         {
+            // events
             if (event->len > 0)
             {
-                if (event->mask & IN_OPEN)
-                    printf("File has beem opened: %s at %s\n", event->name, ctime(&now));
+                offset = 0;
+
+                //if (event->mask & IN_OPEN)
+                //    printf("[%.24s] File has beem opened:%s\n", ctime(&now), event->name);
+
                 if (event->mask & IN_CREATE)
-                    printf("File was maked: %s at %s\n", event->name, ctime(&now));
+                    offset = sprintf(output_buf, 
+                            "[%.24s] File was maked: %s\n", ctime(&now), event->name);
+                    
                 if (event->mask & IN_DELETE)
-                    printf("File has been deleted: %s\n at %s\n", event->name, ctime(&now));
+                    offset = sprintf(output_buf, 
+                            "[%.24s] File has been deleted: %s\n", ctime(&now), event->name);
+
                 if (event->mask & IN_MODIFY)
                 {
                     int file_hash = event->wd % 256;
                     if (now > last_mod_time[file_hash])
                     {
-                        printf("File has been modified: %s at \n", event->name, ctime(&now));
+                        offset = sprintf(output_buf, 
+                            "[%.24s] File has been modified: %s\n", ctime(&now), event->name);
                         last_mod_time[file_hash] = now;
                     }
+                }
+
+                // output to file
+                if (offset > 0)
+                {
+                    fprintf(file, "%s\n", output_buf);
+                    fflush(file);
                 }
             }
             
@@ -56,6 +89,7 @@ int main()
         }
     }
     
+    fclose(file);
     inotify_rm_watch(fd, wd);
     close(fd);
     return 0;
