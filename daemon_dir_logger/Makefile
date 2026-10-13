@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -O2
 TARGET = figger # file logger
-SRC = ddl.c
+SRC = main.c
 OBJ = $(SRC:.c=.o)
 
 all: $(TARGET)
