@@ -8,8 +8,8 @@
 
 int inotify_fd = 0;
 
-int add_watch_callback(const char *fpath, const struct stat *sd,
-    int typeflag, struct FTW *ftwbuf)
+int add_watch_callback(const char *fpath, const struct stat *sd, int typeflag,
+     struct FTW *ftwbuf)
 {
     if (typeflag == FTW_D)
     {
@@ -38,14 +38,6 @@ int main()
         perror("ntfw");
         return 1;
     }
-
-    // int wd = inotify_add_watch(fd, ".", 
-    //                            IN_CREATE | IN_DELETE | IN_MODIFY | IN_OPEN);
-    // if (wd < 0) 
-    // {
-    //     perror("inotify_add_watch");
-    //     return 1;
-    // }
 
     char buf[4096];
     time_t last_mod_time[256] = {0};
@@ -80,6 +72,9 @@ int main()
             {
                 offset = 0;
 
+                const char *kind = (event->mask & IN_ISDIR) ? "Directory" 
+                    : "File";
+
                 // Add new directory to watch, when app is work
                 if (event->mask & IN_CREATE && event->mask & IN_ISDIR)
                 {
@@ -94,15 +89,18 @@ int main()
                 }
                 if (event->mask & IN_OPEN)
                     offset = sprintf(output_buf, 
-                            "[%.24s] File has been opened: %s\n", ctime(&now), event->name);
+                        "[%.24s] %s has been opened: %s\n", 
+                        ctime(&now), kind, event->name);
 
                 if (event->mask & IN_CREATE)
                     offset = sprintf(output_buf, 
-                            "[%.24s] File was maked: %s\n", ctime(&now), event->name);
+                        "[%.24s] %s was maked: %s\n", 
+                        ctime(&now), kind, event->name);
                     
                 if (event->mask & IN_DELETE)
                     offset = sprintf(output_buf, 
-                            "[%.24s] File has been deleted: %s\n", ctime(&now), event->name);
+                        "[%.24s] %s has been deleted: %s\n", 
+                        ctime(&now), kind, event->name);
 
                 if (event->mask & IN_MODIFY)
                 {
@@ -110,7 +108,8 @@ int main()
                     if (now > last_mod_time[file_hash])
                     {
                         offset = sprintf(output_buf, 
-                            "[%.24s] File has been modified: %s\n", ctime(&now), event->name);
+                            "[%.24s] File has been modified: %s\n", 
+                            ctime(&now), event->name);
                         last_mod_time[file_hash] = now;
                     }
                 }
