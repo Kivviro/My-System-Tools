@@ -24,4 +24,21 @@ struct monitor {
     struct watch_entry *watches;
 };
 
+
+
+// logger
+int logger_open(struct monitor *m, const char *requested_log);
+void logger_close(struct monitor *m);
+void log_message(struct monitor *m, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+int is_log_path(const struct monitor *m, const char *path);
+
+// fanotify module
+int fanotify_monitor_init(struct monitor *m);
+int fanotify_mark_directory(struct monitor *m, const char *path);
+void fanotify_monitor_close(struct monitor *m);
+void fanotify_handle_events(struct monitor *m);
+
+
 #endif
