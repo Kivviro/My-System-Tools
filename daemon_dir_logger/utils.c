@@ -47,7 +47,7 @@ const char *event_kind_name(uint32_t mask)
     return "file";
 }
 
-// dont work. mb try get "command" (called that in ps aux)
+// dont work
 void process_name(pid_t pid, char *out, size_t out_size)
 {
     char path[64];
@@ -62,7 +62,7 @@ void process_name(pid_t pid, char *out, size_t out_size)
         return;
 
     snprintf(path, sizeof(path), "/proc/%ld/comm", (long)pid);
-    fp - fopen(path, "r");
+    fp = fopen(path, "r");
     if (!fp)
         return;
 
