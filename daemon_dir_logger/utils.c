@@ -47,6 +47,7 @@ const char *event_kind_name(uint32_t mask)
     return "file";
 }
 
+// dont work. mb try get "command" (called that in ps aux)
 void process_name(pid_t pid, char *out, size_t out_size)
 {
     char path[64];

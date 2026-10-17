@@ -22,7 +22,7 @@ static void handle_signal(int signo)
 static void usage(const char *program)
 {
     fprintf(stderr, "Usage: %s DIRECTORY [LOGFILE]\n", program);
-    fprintf(stderr, "Example: %s ./monitored-dir ./figger.log\n", program);
+    fprintf(stderr, "Example: %s ./monitored_dir ./figger.log\n", program);
 }
 
 int main(int argc, char **argv)
@@ -116,12 +116,14 @@ int main(int argc, char **argv)
             { .fd = m.inotify_fd, .events = POLLIN },
             { .fd = m.fanotify_fd, .events = POLLIN }
         };
+
         int rc = poll(fds, 2, -1);
 
         if (rc < 0)
         {
             if (errno == EINTR)
                 continue;
+            
             perror("poll");
             log_message(&m, "ERROR poll: %s", strerror(errno));
             break;

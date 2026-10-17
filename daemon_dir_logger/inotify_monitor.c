@@ -1,3 +1,9 @@
+/*
+Use for monitoring file system actions (OPEN, MODIFY etc files/directories). 
+Check event action which interected with file/directory.
+
+*/
+
 #define _GNU_SOURCE
 #include "monitor.h"
 
@@ -257,8 +263,9 @@ void inotify_handle_events(struct monitor *m)
             if (ev->mask & (IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | 
                 IN_CLOSE_WRITE | IN_MODIFY | IN_OPEN | IN_ATTRIB | IN_DELETE_SELF | IN_MOVE_SELF))
             {
+                // commentet it for write to .log only processes events
                 log_message(m, "FS acction=%s type=%s path=%s", inotify_mask_name(ev->mask), 
-                    (ev->mask & IN_ISDIR) ? "directory" : "file", object_path);    
+                    (ev->mask & IN_ISDIR) ? "directory" : "file", object_path);
             }
 
             if ((ev->mask & IN_ISDIR) && (ev->mask & (IN_CREATE | IN_MOVED_TO)))

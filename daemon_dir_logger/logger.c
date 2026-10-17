@@ -1,3 +1,5 @@
+/* event logging module to a .log file */
+
 #define _GNU_SOURCE
 #include "monitor.h"
 
@@ -92,6 +94,7 @@ void logger_close(struct monitor *m)
     }
 }
 
+// function to write a log line to a file
 void log_message(struct monitor *m, const char *format, ...)
 {
     if (!m || !m->log_file)

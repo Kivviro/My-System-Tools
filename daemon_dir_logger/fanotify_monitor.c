@@ -1,3 +1,8 @@
+/*
+Use for monitoring processes actions. Check pid and name of process
+and path to the file/directory with which the process is interacting.
+*/
+
 #define _GNU_SOURCE
 #include "monitor.h"
 
