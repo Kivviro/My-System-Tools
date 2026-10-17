@@ -1,138 +1,147 @@
-#define _XOPEN_SOURCE 500
-#include <sys/inotify.h>
+#define _GNU_SOURCE
+#include "monitor.h"
+
+#include <errno.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
-#include <ftw.h>
+#include <sys/stat.h>
 
-int inotify_fd = 0;
+volatile sig_atomic_t g_stop = 0;
 
-int add_watch_callback(const char *fpath, const struct stat *sd, int typeflag,
-     struct FTW *ftwbuf)
+static void handle_signal(int signo)
 {
-    if (typeflag == FTW_D)
-    {
-        int wd = inotify_add_watch(inotify_fd, fpath, 
-            IN_CREATE | IN_DELETE | IN_MODIFY | IN_OPEN);
 
-        if (wd < 0)
-            perror("inotify_add_watch");
-        else
-            printf("Watching: %s\n", fpath);
-    }
-    return 0;
+    (void)signo;
+    g_stop = 1;
 }
 
-int main() 
+static void usage(const char *program)
 {
-    inotify_fd = inotify_init();
-    if (inotify_fd < 0) 
+    fprintf(stderr, "Usage: %s DIRECTORY [LOGFILE]\n", program);
+    fprintf(stderr, "Example: %s ./monitored-dir ./figger.log\n", program);
+}
+
+int main(int argc, char **argv)
+{
+    struct monitor m;
+    struct stat st;
+    char resolved[PATH_MAX];
+    struct sigaction sa;
+
+    if (argc < 2 || argc > 3)
     {
-        perror("inotify_init");
-        return 1;
+        usage(argv[0]);
+        return EXIT_FAILURE;
     }
 
-    if (nftw(".", add_watch_callback, 20, 0) == -1)
+    memset(&m, 0, sizeof(m));
+    m.inotify_fd = -1;
+    m.fanotify_fd = -1;
+
+    if (!realpath(argv[1], resolved))
     {
-        perror("ntfw");
-        return 1;
+        perror("realpath directory");
+        return EXIT_FAILURE;
     }
 
-    char buf[4096];
-    time_t last_mod_time[256] = {0};
-
-    FILE *file = fopen("log.txt", "a");
-    if (file == NULL)
+    if (stat(resolved, &st) < 0)
     {
-        perror("fopen failed");
-        return 1;
+        perror("stat directory");
+        return EXIT_FAILURE;
     }
 
-    while (1) 
+    if (!S_ISDIR(st.st_mode))
     {
-        int len = read(inotify_fd, buf, sizeof(buf));
+        fprintf(stderr, "figger: not a directory: %s\n", resolved);
+        return EXIT_FAILURE;
+    }
 
-        if (len < 0)
+    if (strlen(resolved) >= sizeof(m.root))
+    {
+        fprintf(stderr, "figger: directory parth is too long\n");
+        return EXIT_FAILURE;
+    }
+    strcpy(m.root, resolved);
+
+    if (logger_open(&m, argc == 3 ? argv[2] : NULL) < 0)
+    {
+        perror("open log file");
+        return EXIT_FAILURE;
+    }
+
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = handle_signal;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGINT, &sa, NULL) < 0 || sigaction(SIGTERM, &sa, NULL) < 0)
+    {
+        perror("sigaction");
+        logger_close(&m);
+        return EXIT_FAILURE;
+    }
+
+    if (inotify_monitor_init(&m) < 0)
+    {
+        perror("inotify initialization");
+        logger_close(&m);
+        return EXIT_FAILURE;
+    }
+
+    if (fanotify_monitor_init(&m) < 0)
+    {
+        perror("fanotify initialization");
+        inotify_monitor_close(&m);
+        logger_close(&m);
+        return EXIT_FAILURE;
+    }
+
+    if (inotify_add_tree(&m, m.root) < 0)
+    {
+        perror("initial recursive watch setup");
+        fanotify_monitor_close(&m);
+        inotify_monitor_close(&m);
+        logger_close(&m);
+        return EXIT_FAILURE;
+    }
+
+    log_message(&m, "START root=%s log=%s", m.root, m.log_path);
+    printf("Monitoring: %s\nLog: 5s\nPress CTRL-C to stop\n", m.root, m.log_path);
+
+    while (!g_stop)
+    {
+        struct pollfd fds[2] = {
+            { .fd = m.inotify_fd, .events = POLLIN },
+            { .fd = m.fanotify_fd, .events = POLLIN }
+        };
+        int rc = poll(fds, 2, -1);
+
+        if (rc < 0)
         {
-            perror("read");
+            if (errno == EINTR)
+                continue;
+            perror("poll");
+            log_message(&m, "ERROR poll: %s", strerror(errno));
             break;
         }
 
-        struct inotify_event *event = (struct inotify_event *)buf;
-        time_t now = time(NULL);
+        if (fds[0].revents & POLLIN)
+            inotify_handle_events(&m);
+        if (fds[1].revents & POLLIN)
+            fanotify_handle_events(&m);
 
-        char output_buf[1024];
-        int offset = 0;
-
-        while ((char *)event < buf + len) 
+        if ((fds[0].revents | fds[1].revents) & (POLLERR | POLLHUP | POLLNVAL))
         {
-            // events
-            if (event->len > 0)
-            {
-                offset = 0;
-
-                const char *kind = (event->mask & IN_ISDIR) ? "Directory" 
-                    : "File";
-
-                // Add new directory to watch, when app is work
-                if (event->mask & IN_CREATE && event->mask & IN_ISDIR)
-                {
-                    char path[512];
-                    snprintf(path, sizeof(path), "./%s", event->name);
-
-                    int new_wd = inotify_add_watch(inotify_fd, path, 
-                        IN_CREATE | IN_DELETE | IN_MODIFY);
-                    
-                    if (new_wd >- 0)
-                    printf("Now watching directory: %s\n", event->name);
-                }
-                if (event->mask & IN_OPEN)
-                    offset = sprintf(output_buf, 
-                        "[%.24s] %s has been opened: %s\n", 
-                        ctime(&now), kind, event->name);
-
-                if (event->mask & IN_CREATE)
-                    offset = sprintf(output_buf, 
-                        "[%.24s] %s was maked: %s\n", 
-                        ctime(&now), kind, event->name);
-                    
-                if (event->mask & IN_DELETE)
-                    offset = sprintf(output_buf, 
-                        "[%.24s] %s has been deleted: %s\n", 
-                        ctime(&now), kind, event->name);
-
-                if (event->mask & IN_MODIFY)
-                {
-                    int file_hash = event->wd % 256;
-                    if (now > last_mod_time[file_hash])
-                    {
-                        offset = sprintf(output_buf, 
-                            "[%.24s] File has been modified: %s\n", 
-                            ctime(&now), event->name);
-                        last_mod_time[file_hash] = now;
-                    }
-                }
-
-                // output to file
-                if (offset > 0)
-                {
-                    if (event->len > 0 && strcmp(event->name, "log.txt") != 0)
-                    {
-                        fprintf(file, "%s", output_buf);
-                        fflush(file);
-                    }
-                    
-                }
-            }
-            
-            event = (struct inotify_event *)((char *)event + 
-            sizeof(struct inotify_event) + event->len);
+            log_message(&m, "ERROR poll reported an invalid or closed descriptor");
+            break;
         }
     }
-    
-    fclose(file);
-    inotify_rm_watch(inotify_fd, 0);
-    close(inotify_fd);
-    return 0;
+
+    log_message(&m, "STOP");
+    fanotify_monitor_close(&m);
+    inotify_monitor_close(&m);
+    logger_close(&m);
+    return EXIT_SUCCESS;
 }

@@ -21,7 +21,7 @@ int fanotify_mark_directory(struct monitor *m, const char *path)
 {
     uint64_t mask = FAN_EVENT_ON_CHILD | FAN_OPEN | FAN_MODIFY | FAN_CLOSE_WRITE;
 
-    return fannotify_mark(m->fanotify_fd; FAN_MARK_ADD, mask, AT_FDCWD, path);
+    return fanotify_mark(m->fanotify_fd, FAN_MARK_ADD, mask, AT_FDCWD, path);
 }
 
 static void fanotify_event_names(uint64_t mask, char *out, size_t out_size)
@@ -55,7 +55,7 @@ void fanotify_handle_events(struct monitor *m)
         if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
             return;
 
-        // add debug log msg
+        log_message(m, "ERROR fanotift read: %s", strerror(errno));
         return;
     }
     if (n == 0)
@@ -74,13 +74,16 @@ void fanotify_handle_events(struct monitor *m)
 
         if (meta->vers != FANOTIFY_METADATA_VERSION)
         {
-            // add ERROR log msg
+            log_message(m, "ERROR fanotify metadata version mismatch");
             break;
         }
 
         if (meta->fd == FAN_NOFD)
         {
-            // add checks with ifs WARN
+            if (meta->mask & FAN_Q_OVERFLOW)
+                log_message(m, "WARN fanotify queue overflow: some events were lost");
+            else
+                log_message(m, "WARN fanotify event has no object fd mask=0x%llx");
         }
         else if (meta->fd >= 0)
         {
@@ -92,23 +95,27 @@ void fanotify_handle_events(struct monitor *m)
                 object_path[path_len] = '\0';
 
                 // unfull if
-                if (path_is_within(m->root, object_path))
+                if (path_is_within(m->root, object_path) && !is_log_path(m, object_path))
                 {
                     process_name((pid_t)meta->pid, pname, sizeof(pname));
                     fanotify_event_names(meta->mask, event_names, sizeof(event_names));
-                    // log PROCESS
-                }
-                else
-                {
-                    // log WARN
+                    log_message(m, "PROSECC action=%s pid=%ld name=%s path=%s",
+                        event_names, (long)meta->pid, pname, object_path);
                 }
             }
+            else
+            {
+                log_message(m, "WARN cannot resolve fanotify object fd=%d: %s", 
+                    meta->fd, strerror(errno));
+            }
+
+            close(meta->fd);
         }
 
         if (meta->event_len == 0)
-            break
+            break;
 
-            meta = FAN_EVENT_NEXT(meta, remaining);
+        meta = FAN_EVENT_NEXT(meta, remaining);
     }
 }
 

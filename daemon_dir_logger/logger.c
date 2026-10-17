@@ -80,7 +80,7 @@ int logger_open(struct monitor *m, const char *requested_log)
         return -1;
 
     setvbuf(m->log_file, NULL, _IOLBF, 0);
-    return 0
+    return 0;
 }
 
 void logger_close(struct monitor *m)
@@ -97,7 +97,7 @@ void log_message(struct monitor *m, const char *format, ...)
     if (!m || !m->log_file)
         return;
 
-        time_t now = time(NULL); // maybe can be more security?
+        time_t now = time(NULL);
         struct tm tm_now;
         char timestamp[32] = "unknown-time";
 
@@ -107,7 +107,7 @@ void log_message(struct monitor *m, const char *format, ...)
         fprintf(m->log_file, "[%s] ", timestamp);
         va_list ap;
         va_start(ap, format);
-        vfpintf(m->log_file, format, ap);
+        vfprintf(m->log_file, format, ap);
         va_end(ap);
         fputc('\n', m->log_file);
 }
